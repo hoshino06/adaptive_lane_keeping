@@ -2,7 +2,7 @@
 
 
 
-Official implementation of the paper ["Online Adaptive Probabilistic Safety Certificate with Language Guidance"](https://arxiv.org/abs/2511.12431), accepted to the 8th Annual Learning for Dynamics & Control Conference (L4DC), 2026.
+Official implementation of the paper ["Online Adaptive Probabilistic Safety Certificate with Language Guidance"](https://arxiv.org/abs/2511.12431), published at the 8th Annual Learning for Dynamics & Control Conference (L4DC), 2026.
 
 <br>
 
@@ -47,24 +47,28 @@ The performance of these controllers is compared in terms of **computation time*
 ```
 .
 ├─ README.md
+├─ .env.example                     ← API keys; rename to `.env` in the repo root
 ├─ codes/
-│  ├─ mdl_closed_loop_mpc.slx     ← Main Simulink model
-│  ├─ main_single_run.m           ← Run one scenario (quick test)
-│  ├─ main_parallel_runs.m        ← Run multiple parallel simulations
-│  ├─ param_sweep_parallel.m      ← Run massive parallel ablation simulations
-│  ├─ impl_controller/            ← MPC, PSC, CDBF implementations
-│  ├─ impl_estimator/             ← Friction coefficient estimator
-│  ├─ impl_model/                 ← Vehicle and dynamics models
-│  ├─ impl_road/                  ← Road description
-│  ├─ fun_*                       ← System dynamics, inequality constraints, etc.
-│  ├─ mfun_*                      ← Imprementations of MATLAB Functions in Simulink model
-│  └─ data_mpc/                   ← Simulation results (saved .mat files) and plotting scripts
-│       └─ figs_mpc/              ← Ablation trajectory visualizations and statistics
-├─  docs/                         ← Simulink Documentations
-└─  LLM/
-   ├─ llm_results/                ← Ablation results
-   └─ user_inputs/                ← User commands
-  
+│  ├─ mdl_closed_loop_mpc.slx       ← Main Simulink model
+│  ├─ main_single_run.m             ← Run one scenario for a quick test
+│  ├─ main_parallel_runs.m          ← Run multiple parallel simulations
+│  ├─ param_sweep_parallel.m        ← Run large-scale parallel ablation simulations
+│  ├─ run_llm_ablation_control.m    ← LLM ablation for control parameters
+│  ├─ run_llm_ablation_estimator.m  ← LLM ablation for estimator parameters
+│  ├─ phi_generation/               ← LLM-based barrier-function generation
+│  ├─ impl_controller/              ← MPC, PSC, and CDBF implementations
+│  ├─ impl_estimator/               ← Friction-coefficient estimator
+│  ├─ impl_model/                   ← Vehicle and dynamics models
+│  ├─ impl_road/                    ← Road description
+│  ├─ fun_*                         ← System dynamics, inequality constraints, and related utilities
+│  ├─ mfun_* / msfun_*              ← MATLAB Function and S-Function implementations used in Simulink
+│  └─ data_mpc/                     ← Saved simulation results and plotting scripts
+│       └─ figs_mpc/                ← Ablation trajectory visualizations and statistics
+├─ docs/                            ← Simulink documentation and figures
+└─ LLM/
+   ├─ llm_results/                  ← LLM ablation results
+   └─ user_inputs/                  ← User command examples
+
 ```
 
 For more details on Simulink implementation, see [docs/model_overview.md](docs/model_overview.md).
@@ -78,6 +82,7 @@ For more details on Simulink implementation, see [docs/model_overview.md](docs/m
 - Model Predictive Control Toolbox  
 - Optimization Toolbox  
 - Parallel Computing Toolbox (for `main_parallel_runs.m`)  
+- MATLAB add-on: Large Language Models (LLMs) with MATLAB  (https://www.mathworks.com/matlabcentral/fileexchange/163796-large-language-models-llms-with-matlab).
 
 ---
 
@@ -197,7 +202,7 @@ data_mpc/data_APSC_multi_icy_H10.mat
 
 To reproduce the ablation experiments and trade-off visualizations:
 
-```
+```matlab
 cd codes
 run('param_sweep_parallel.m')
 ```
@@ -216,7 +221,7 @@ After the sweep completes:
 
 1. **Visualize all trajectories and summary statistics:**
 
-   ```
+   ```matlab
    run('data_mpc/plot_trajectories_all.m')
    ```
 
@@ -224,7 +229,7 @@ After the sweep completes:
 
 2. **Reproduce the safety–efficiency trade-off plot:**
 
-   ```
+   ```matlab
    run('data_mpc/tradeoff_plot.m')
    ```
 
@@ -234,9 +239,17 @@ After the sweep completes:
 
 ![user_adaptation](docs/user_adaptation.png)
 
+For LLM experiments, rename `.env.example` to `.env` in the repository root and fill in your API keys. The `.env` file is gitignored.
+
+
+
+Note that the MATLAB add-on 'Large Language Models (LLMs) with MATLAB' is required (https://www.mathworks.com/matlabcentral/fileexchange/163796-large-language-models-llms-with-matlab).
+
+
+
 To reproduce the experiment results reported in Table 1 and Table 2:
 
-```
+```matlab
 cd codes
 run('run_llm_ablation_control.m')
 ```
@@ -244,7 +257,7 @@ This script evaluates how different LLMs infer control-related safety parameters
   - **Run 1** uses the *aggressive* user input  
   - **Run 2** uses the *conservative* user input (and receives feedback from Run 1)
 
-```
+```matlab
 cd codes
 run('run_llm_ablation_estimator.m')
 ```
@@ -258,24 +271,104 @@ All result files are saved to:
   LLM/llm_results
   ```
 To visualize the results:
-```
+```matlab
 cd codes
 run('show_result_control.m')
 ```
 and
-```
+```matlab
 cd codes
 run('show_result_estimator.m')
 ```
-Please ensure you provide your own API keys in the code before execution.
-Matlab add-on Large Language Models (LLMs) with MATLAB is required (https://www.mathworks.com/matlabcentral/fileexchange/163796-large-language-models-llms-with-matlab).
-
 ### LLMs evaluated
 - GPT-4o-mini  
 - GPT-3.5-Turbo  
 - Gemini-2.5-Flash  
 - Gemini-2.0-Flash  
 - DeepSeek-Chat
+
+
+
+## 9. Ablations: LLM barrier function generation
+
+This section reproduces the optional LLM-based barrier-function generation experiments. These experiments extend the standard setting by allowing the safety barrier function $\phi$ to be generated by the LLM.
+
+The related scripts are located in:
+
+```
+codes/phi_generation/
+```
+
+### Analytical barrier-function comparison
+
+![llm_phi_generation](docs/llm_phi_generation.png)
+
+To compare different analytical barrier-function expressions for the proposed PSC:
+
+```matlab
+cd codes
+run('phi_generation/compare_phi_expressions.m')
+```
+
+- Edit `compare_phi_expressions.m` to modify the candidate $\phi$ expressions, `PSC` settings, `EMAX`, and `MU_VALUE`.
+- Results are saved to:
+
+  ```
+  data_mpc/phi_comparison_results.mat
+  ```
+
+To visualize the comparison results:
+
+```matlab
+cd codes
+run('phi_generation/plot_phi_comparison.m')
+```
+
+### LLM-based barrier-function generation
+
+To reproduce the LLM barrier-function generation ablation:
+
+```matlab
+cd codes
+run('phi_generation/run_llm_phi_ablation.m')
+```
+
+This script evaluates several LLMs by asking each model to generate multiple candidate $\phi$ expressions from the same prompt. Each expression is checked using `phi_expr_passes_barrier_check.m`.
+
+The results are saved to:
+
+```
+LLM/llm_results/phi_ablation.mat
+```
+
+### Integration with adaptive PSC
+
+![llm_phi_multi_turn](docs/llm_phi_multi_turn.png)
+
+To run the full pipeline with LLM generated barrier functions:
+
+```matlab
+cd codes
+run('phi_generation/run_llm_pipeline.m')
+```
+
+This script evaluates whether an LLM can infer controller-related priors and propose a valid barrier-function expression from natural-language user instructions.
+
+The pipeline performs:
+
+- natural-language instruction parsing
+- LLM-based inference of priors and $\phi$
+- barrier-expression validation
+- closed-loop evaluation using `main_single_run_phi.m`
+- feedback-based refinement across multiple runs
+
+Results are saved under:
+
+```
+codes/data_mpc/
+```
+
+---
 
 ## Citation
 
